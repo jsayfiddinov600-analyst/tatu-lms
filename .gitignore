@@ -1,6 +1,5 @@
 __pycache__/
 *.pyc
-lms.db
 *.db
 .env
 venv/

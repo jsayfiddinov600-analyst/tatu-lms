@@ -11,6 +11,11 @@ app = Flask(__name__, static_folder='static', template_folder='templates')
 app.secret_key = os.environ.get('SECRET_KEY', 'tatu-lms-secret-2025')
 CORS(app, supports_credentials=True)
 
+# Gunicorn bilan ham ishlashi uchun — startup da baza yaratiladi
+with app.app_context():
+    init_db()
+    seed_db()
+
 # ===== HELPERS =====
 def require_auth(f):
     @wraps(f)
