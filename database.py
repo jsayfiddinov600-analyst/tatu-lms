@@ -134,6 +134,25 @@ def seed_db():
 
     random.seed(42)
 
+    # ===== OQITUVCHILAR — avval (baholar FK uchun) =====
+    teachers_early = [
+        ("TCH001","tch001","Sadikov R.T.","SR","Dasturiy injiniring","Dotsent"),
+        ("TCH002","tch002","Jorayev A.I.","JA","Dasturiy injiniring","Dotsent"),
+        ("TCH003","tch003","Djurayev T.B.","DT","Dasturiy injiniring","Dotsent"),
+        ("TCH004","tch004","Xudoyberdiyev R.F.","XR","Dasturiy injiniring","Dotsent"),
+        ("TCH005","tch005","Atadjanova N.S.","AN","Kompyuter tarmoqlari","Dotsent"),
+        ("TCH006","tch006","Torayeva M.S.","TM","Kompyuter tarmoqlari","Dotsent"),
+        ("TCH007","tch007","Xudazarov R.S.","XR","Matematika","Dotsent"),
+        ("TCH008","tch008","Xurramov A.X.","XA","Matematika","Dotsent"),
+        ("TCH009","tch009","Karimov N.M.","KN","Axborot texnologiyalari","Dotsent"),
+    ]
+    for t in teachers_early:
+        c.execute("INSERT OR IGNORE INTO users (id,parol,type,ism,qisqa,initials,kafedra,lavozim) VALUES (?,?,?,?,?,?,?,?)",
+                  (t[0],t[1],"oqituvchi",t[2],t[2],t[3],t[4],t[5]))
+    c.execute("INSERT OR IGNORE INTO users (id,parol,type,ism,qisqa,initials) VALUES (?,?,?,?,?,?)",
+              ("admin","admin123","admin","Administrator","Admin","AD"))
+    conn.commit()
+
     # ===== FANLAR =====
     fanlar = [
         (1, "Veb ilovalar yaratish", "CWA001", 6, "Sadikov R.T.", "Jorayev A.I."),
@@ -269,29 +288,6 @@ def seed_db():
                         VALUES (?,?,?,?,?,?,?)""",
                         (tid, t['fan_id'], t['id'], ball, '', 'TCH001', '2025-03-25 10:00:00'))
             sid += 1
-
-    # ===== OQITUVCHILAR =====
-    teachers = [
-        ("TCH001","tch001","Sadikov R.T.","SR","Dasturiy injiniring","Dotsent"),
-        ("TCH002","tch002","Jorayev A.I.","JA","Dasturiy injiniring","Dotsent"),
-        ("TCH003","tch003","Djurayev T.B.","DT","Dasturiy injiniring","Dotsent"),
-        ("TCH004","tch004","Xudoyberdiyev R.F.","XR","Dasturiy injiniring","Dotsent"),
-        ("TCH005","tch005","Atadjanova N.S.","AN","Kompyuter tarmoqlari","Dotsent"),
-        ("TCH006","tch006","Torayeva M.S.","TM","Kompyuter tarmoqlari","Dotsent"),
-        ("TCH007","tch007","Xudazarov R.S.","XR","Matematika","Dotsent"),
-        ("TCH008","tch008","Xurramov A.X.","XA","Matematika","Dotsent"),
-        ("TCH009","tch009","Karimov N.M.","KN","Axborot texnologiyalari","Dotsent"),
-    ]
-    for t in teachers:
-        c.execute("""INSERT OR IGNORE INTO users
-            (id,parol,type,ism,qisqa,initials,kafedra,lavozim)
-            VALUES (?,?,?,?,?,?,?,?)""",
-            (t[0],t[1],"oqituvchi",t[2],t[2],t[3],t[4],t[5]))
-
-    # ===== ADMIN =====
-    c.execute("""INSERT OR IGNORE INTO users (id,parol,type,ism,qisqa,initials)
-                 VALUES (?,?,?,?,?,?)""",
-              ("admin","admin123","admin","Administrator","Admin","AD"))
 
     conn.commit()
     conn.close()
