@@ -485,15 +485,21 @@ function stopPolling() {
 }
 
 async function refreshCurrentPage() {
-  // Foydalanuvchi ma'lumotlarini yangilash
   const me = await api('GET', '/api/me');
   if(me.error) return;
   currentUser = me;
   if(me.type === 'talaba' && me.fanlar) {
     FANLAR = me.fanlar;
   }
-  // Joriy sahifani qayta render qilish
-  navigateTo(currentPage);
+  // navigateTo ni chaqirmaymiz - faqat joriy contentni yangilaymiz
+  const mc = document.getElementById('mainContent');
+  if(!mc) return;
+  if(currentUser.type !== 'oqituvchi' && currentPage === 'dashboard') {
+    mc.innerHTML = renderDashboard(activeDashFan);
+  } else if(currentPage === 'vazifalar' && activeVazifaFan) {
+    const fan = FANLAR.find(f=>f.id===activeVazifaFan.id);
+    if(fan) mc.innerHTML = renderVazifalar(fan);
+  }
 }
 
 function calcGPA() {
@@ -751,10 +757,33 @@ async function doLogin() {
   document.getElementById('topbarAvatar').textContent = me.initials || '?';
 
   renderSidebar();
-  navigateTo('dashboard');
   updateClock();
   if(clockInterval) clearInterval(clockInterval);
   clockInterval = setInterval(updateClock, 1000);
+
+  // Dashboard ni to'g'ridan to'g'ri render qilamiz
+  // navigateTo ishlatmaymiz - chunki FANLAR allaqachon tayyor
+  currentPage = 'dashboard';
+  renderSidebar();
+  const mc = document.getElementById('mainContent');
+  mc.style.animation = 'none';
+  mc.offsetHeight;
+  mc.style.animation = 'fadeIn .2s ease';
+
+  if(me.type === 'talaba') {
+    mc.innerHTML = renderDashboard('all');
+  } else if(me.type === 'oqituvchi') {
+    const [tal, bah] = await Promise.all([
+      api('GET', '/api/teacher/talabalar'),
+      api('GET', '/api/teacher/baholanmaganlar')
+    ]);
+    TCH_TALABALAR = Array.isArray(tal) ? tal : [];
+    TCH_BAHOLANMAGANLAR = Array.isArray(bah) ? bah : [];
+    mc.innerHTML = renderTeacherDashboard();
+  } else if(me.type === 'admin') {
+    mc.innerHTML = '<div class="page-header"><h2>Admin Panel</h2></div><div class="card"><div class="card-body"><button class="btn btn-primary" onclick="openAdminPanel()">⚙️ Admin panelni ochish</button></div></div>';
+  }
+
   startPolling();
 }
 
@@ -847,9 +876,12 @@ async function navigateTo(page) {
     else if(page==='malumot') mc.innerHTML = renderMalumot();
   } else {
     if(page==='dashboard') {
-      // Talaba ma'lumotlarini yangilash
+      // Har doim yangi ma'lumot olish
       const me = await api('GET', '/api/me');
-      if(!me.error){ currentUser=me; FANLAR=me.fanlar||FANLAR; }
+      if(!me.error){
+        currentUser = me;
+        if(me.fanlar) FANLAR = me.fanlar;
+      }
       mc.innerHTML = renderDashboard(activeDashFan);
     }
     else if(page==='fanlar') mc.innerHTML = renderFanlar();
