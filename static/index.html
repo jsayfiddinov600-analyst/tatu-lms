@@ -721,72 +721,93 @@ async function doLogin() {
   const err   = document.getElementById('loginError');
   const btn   = document.querySelector('.login-btn');
 
+  if(!login || !pass) {
+    err.textContent = "Login va parolni kiriting!";
+    err.style.display = 'block';
+    return;
+  }
+
   btn.textContent = 'Kirish...';
   btn.disabled = true;
-
-  const res = await api('POST', '/api/login', {login, parol: pass});
-
-  btn.textContent = 'Kirish';
-  btn.disabled = false;
-
-  if(res.error) {
-    err.textContent = res.error;
-    err.style.display = 'block';
-    return;
-  }
-
   err.style.display = 'none';
 
-  // /api/me dan to'liq ma'lumot olish
-  const me = await api('GET', '/api/me');
-  if(me.error) {
-    err.textContent = 'Maiumot yuklashda xato';
+  try {
+    // 1. Login
+    const loginRes = await api('POST', '/api/login', {login, parol: pass});
+    if(loginRes.error) {
+      err.textContent = loginRes.error;
+      err.style.display = 'block';
+      btn.textContent = 'Kirish';
+      btn.disabled = false;
+      return;
+    }
+
+    // 2. Ma'lumotlarni olish — bu TUGAGUNICHA kutamiz
+    const me = await api('GET', '/api/me');
+    if(me.error) {
+      err.textContent = "Malumot yuklashda xato. Qayta urining.";
+      err.style.display = 'block';
+      btn.textContent = 'Kirish';
+      btn.disabled = false;
+      return;
+    }
+
+    // 3. Ma'lumotlar tayyor — endi saqlash va ko'rsatish
+    currentUser = me;
+    lastPollTime = new Date().toISOString().replace('T',' ').substring(0,19);
+
+    if(me.type === 'talaba' && me.fanlar && me.fanlar.length > 0) {
+      FANLAR = me.fanlar;
+    }
+
+    // 4. UI ni ko'rsatish
+    document.getElementById('page-login').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    document.getElementById('topbarAvatar').textContent = me.initials || '?';
+
+    // 5. Sidebar
+    currentPage = 'dashboard';
+    renderSidebar();
+    updateClock();
+    if(clockInterval) clearInterval(clockInterval);
+    clockInterval = setInterval(updateClock, 1000);
+
+    // 6. Dashboard ni FANLAR tayyor bo'lgandan keyin render qilish
+    const mc = document.getElementById('mainContent');
+    mc.style.animation = 'none';
+    mc.offsetHeight;
+    mc.style.animation = 'fadeIn .2s ease';
+
+    if(me.type === 'talaba') {
+      if(!FANLAR || FANLAR.length === 0) {
+        mc.innerHTML = '<div style="text-align:center;padding:40px;color:#64748b">Malumotlar yuklanmoqda...</div>';
+        const me2 = await api('GET', '/api/me');
+        if(!me2.error && me2.fanlar) { currentUser=me2; FANLAR=me2.fanlar; }
+      }
+      mc.innerHTML = renderDashboard('all');
+    } else if(me.type === 'oqituvchi') {
+      mc.innerHTML = '<div style="text-align:center;padding:40px;color:#64748b">Yuklanmoqda...</div>';
+      const [tal, bah] = await Promise.all([
+        api('GET', '/api/teacher/talabalar'),
+        api('GET', '/api/teacher/baholanmaganlar')
+      ]);
+      TCH_TALABALAR = Array.isArray(tal) ? tal : [];
+      TCH_BAHOLANMAGANLAR = Array.isArray(bah) ? bah : [];
+      mc.innerHTML = renderTeacherDashboard();
+    } else if(me.type === 'admin') {
+      mc.innerHTML = '<div class="page-header"><h2>Admin Panel</h2></div><div class="card"><div class="card-body" style="text-align:center;padding:32px"><button class="btn btn-primary" style="font-size:1rem;padding:14px 28px" onclick="openAdminPanel()">⚙️ Admin panelni ochish</button></div></div>';
+    }
+
+    startPolling();
+
+  } catch(e) {
+    console.error('Login xato:', e);
+    err.textContent = "Xato yuz berdi. Qayta urining.";
     err.style.display = 'block';
-    return;
+    btn.textContent = 'Kirish';
+    btn.disabled = false;
   }
-
-  currentUser = me;
-  lastPollTime = new Date().toISOString().replace('T',' ').substring(0,19);
-
-  if(me.type === 'talaba' && me.fanlar) {
-    FANLAR = me.fanlar;
-  }
-
-  document.getElementById('page-login').style.display = 'none';
-  document.getElementById('app').style.display = 'block';
-  document.getElementById('topbarAvatar').textContent = me.initials || '?';
-
-  renderSidebar();
-  updateClock();
-  if(clockInterval) clearInterval(clockInterval);
-  clockInterval = setInterval(updateClock, 1000);
-
-  // Dashboard ni to'g'ridan to'g'ri render qilamiz
-  // navigateTo ishlatmaymiz - chunki FANLAR allaqachon tayyor
-  currentPage = 'dashboard';
-  renderSidebar();
-  const mc = document.getElementById('mainContent');
-  mc.style.animation = 'none';
-  mc.offsetHeight;
-  mc.style.animation = 'fadeIn .2s ease';
-
-  if(me.type === 'talaba') {
-    mc.innerHTML = renderDashboard('all');
-  } else if(me.type === 'oqituvchi') {
-    const [tal, bah] = await Promise.all([
-      api('GET', '/api/teacher/talabalar'),
-      api('GET', '/api/teacher/baholanmaganlar')
-    ]);
-    TCH_TALABALAR = Array.isArray(tal) ? tal : [];
-    TCH_BAHOLANMAGANLAR = Array.isArray(bah) ? bah : [];
-    mc.innerHTML = renderTeacherDashboard();
-  } else if(me.type === 'admin') {
-    mc.innerHTML = '<div class="page-header"><h2>Admin Panel</h2></div><div class="card"><div class="card-body"><button class="btn btn-primary" onclick="openAdminPanel()">⚙️ Admin panelni ochish</button></div></div>';
-  }
-
-  startPolling();
 }
-
 document.addEventListener('keydown', e=>{
   if(e.key==='Enter' && document.getElementById('page-login').style.display!=='none') doLogin();
 });
@@ -876,12 +897,10 @@ async function navigateTo(page) {
     else if(page==='malumot') mc.innerHTML = renderMalumot();
   } else {
     if(page==='dashboard') {
-      // Har doim yangi ma'lumot olish
+      // Har safar dashboardga o'tganda ma'lumotlarni yangilash
+      mc.innerHTML = '<div style="text-align:center;padding:40px;color:#64748b">Yuklanmoqda...</div>';
       const me = await api('GET', '/api/me');
-      if(!me.error){
-        currentUser = me;
-        if(me.fanlar) FANLAR = me.fanlar;
-      }
+      if(!me.error && me.fanlar) { currentUser=me; FANLAR=me.fanlar; }
       mc.innerHTML = renderDashboard(activeDashFan);
     }
     else if(page==='fanlar') mc.innerHTML = renderFanlar();
